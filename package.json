@@ -1,0 +1,20 @@
+{
+  "name": "booky",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "type": "module",
+  
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsc --watch"
+  },
+  "private":"false",
+  "author": "layan khater",
+  "license": "ISC",
+  "dependencies": {
+    "@types/express": "^4.17.11",
+    "express": "^4.17.1",
+    "mongoose": "^5.11.15"
+  }
+}
