@@ -4,12 +4,12 @@
   "description": "",
   "main": "app.js",
   "type": "module",
-  
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "devserver": "nodemon build/app.js"
   },
-  "private":"false",
+  "private": "false",
   "author": "layan khater",
   "license": "ISC",
   "dependencies": {
