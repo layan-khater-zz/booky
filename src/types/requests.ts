@@ -11,7 +11,18 @@ export type SearchResposne<T> = {
   result: T[];
 };
 
-export type BookReq = {
+export type BookRequest = {
   name: string;
   author: string;
+};
+
+export type RegistrationRequest = {
+  name: string;
+  email: string;
+  password: string;
+};
+
+export type LoginRequest = {
+  email: string;
+  password: string;
 };
