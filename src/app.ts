@@ -1,24 +1,11 @@
-import { compareSync, hashSync } from "bcryptjs";
 import express from "express";
-import { sign } from "jsonwebtoken";
 import mongoose from "mongoose";
+import { IController, IApp } from "./interfaces";
 import { verifyJwtToken } from "./middlewares/jwt";
 import Book from "./schemas/book";
-import User, { IUser } from "./schemas/user";
-import {
-  BookRequest,
-  LoginRequest,
-  Pagination,
-  RegistrationRequest,
-} from "./types/requests";
+import { BookRequest, Pagination } from "./types/requests";
 const app = express();
 // middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use((req, res, next) => {
-  res.setHeader("Content-Type", "application/json");
-  next();
-});
 
 app.listen(8080, () => console.log("listening to 8080"));
 
@@ -36,45 +23,6 @@ const db = mongoose.connection;
 
 db.once("open", () => {
   console.log("we are connected!");
-});
-
-app.use(verifyJwtToken);
-app.post("/auth/login", (req, res) => {
-  const loginRequest: LoginRequest = req.body as LoginRequest;
-
-  User.findOne({ email: loginRequest.email }, (err, user: IUser) => {
-    if (err) res.status(500).end("Internal server error");
-    if (!user) res.status(404).end("Invalid Email or Password");
-
-    const isValidPassword = compareSync(loginRequest.password, user.password);
-    if (!isValidPassword) res.status(401).end("Invalid Email or Password");
-    const token = sign({ id: user._id }, process.env.SECRET_KEY, {
-      expiresIn: "2 days",
-    });
-
-    res.status(200).send({ token });
-  });
-});
-
-app.post("/auth/register", (req, res) => {
-  const newUserReq: RegistrationRequest = req.body as RegistrationRequest;
-  const hashedPassword = hashSync(newUserReq.password);
-  const newUser = new User({
-    name: newUserReq.name,
-    email: newUserReq.email,
-    password: hashedPassword,
-  } as IUser);
-
-  newUser
-    .save()
-    .then((r) => {
-      console.log(`User Registration has been succeed`);
-      res.status(200).end();
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500).end();
-    });
 });
 
 app.post("/books/create", (req, res) => {
@@ -174,3 +122,33 @@ app.get("/books", (req, res) => {
 app.get("/healthcheck", (req, res) => {
   res.send("healthy");
 });
+
+class App implements IApp {
+  public app: express.Application;
+  public port: number;
+  constructor(controllers: IController[], port: number) {
+    this.app = express();
+    this.port = port;
+    this.initializeMiddlewares();
+    this.intializeControllers(controllers);
+  }
+
+  private initializeMiddlewares() {
+    this.app.use(express.json());
+    this.app.use(express.urlencoded({ extended: true }));
+    this.app.use((req, res, next) => {
+      res.setHeader("Content-Type", "application/json");
+      next();
+    });
+    this.app.use(verifyJwtToken);
+  }
+  private intializeControllers(controllers: IController[]) {
+    controllers.forEach((c) => {
+      this.app.use(c.path, c.router);
+    });
+  }
+
+  public listen() {
+    app.listen(this.port);
+  }
+}
