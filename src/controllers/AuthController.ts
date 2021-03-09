@@ -18,7 +18,7 @@ class AuthController implements IController {
     this.router.post(`${this.path}/register`, this.register);
   }
 
-  login(req: Request, res: Response) {
+  login = (req: Request, res: Response) => {
     const loginRequest: LoginRequest = req.body as LoginRequest;
 
     User.findOne({ email: loginRequest.email }, (err, user: IUser) => {
@@ -33,9 +33,9 @@ class AuthController implements IController {
 
       res.status(200).send({ token });
     });
-  }
+  };
 
-  register(req: Request, res: Response) {
+  register = (req: Request, res: Response) => {
     const newUserReq: RegistrationRequest = req.body as RegistrationRequest;
     const hashedPassword = hashSync(newUserReq.password);
     const newUser = new User({
@@ -54,7 +54,7 @@ class AuthController implements IController {
         console.log(err);
         res.status(500).end();
       });
-  }
+  };
 }
 
 export default AuthController;
