@@ -1,32 +1,18 @@
 import express, { Request, Response } from "express";
-import mongoose from "mongoose";
+import mongoose, { connect, connection, Connection } from "mongoose";
 import { IController, IApp } from "./interfaces";
 import { verifyJwtToken } from "./middlewares/jwt";
-
-const url = "mongodb://localhost:27017/booky";
-
-mongoose.connect(
-  url,
-  { useNewUrlParser: true, useUnifiedTopology: true },
-  (err: any) => {
-    if (err) throw err;
-  }
-);
-
-const db = mongoose.connection;
-
-db.once("open", () => {
-  console.log("we are connected!");
-});
-
 class App implements IApp {
   public app: express.Application;
   public port: number;
-  constructor(controllers: IController[], port: number) {
+  private db: Connection;
+  constructor(controllers: IController[], port: number, url: string) {
     this.app = express();
     this.port = port;
     this.initializeMiddlewares();
     this.intializeControllers(controllers);
+    this.intializeDbConnection(url);
+    this.db = connection;
   }
 
   private initializeMiddlewares() {
@@ -38,20 +24,35 @@ class App implements IApp {
     });
     this.app.use(verifyJwtToken);
   }
+
   private intializeControllers(controllers: IController[]) {
     controllers.forEach((c) => {
       this.app.use(c.path, c.router);
     });
     this.app.get("/healthcheck", this.healthCheck);
   }
+  private intializeDbConnection = (url: string) => {
+    connect(
+      url,
+      { useNewUrlParser: true, useUnifiedTopology: true },
+      (err: any) => {
+        if (err) throw err;
+      }
+    );
+  };
+  connectDb = () => {
+    this.db.once("open", () => {
+      console.log("we are connected!");
+    });
+  };
 
   healthCheck = (req: Request, res: Response) => {
     res.send("healthy");
   };
 
-  public listen() {
+  public listen = () => {
     this.app.listen(this.port, () => console.log("listening to 8080"));
-  }
+  };
 }
 
 export default App;

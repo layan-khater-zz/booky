@@ -1,5 +1,6 @@
 {
   "env": {
-    "SECRET_KEY": "secret_this_should_be_longer"
+    "SECRET_KEY": "secret_this_should_be_longer",
+    "DB_URL":"mongodb://localhost:27017/booky"
   }
 }

@@ -1,12 +1,10 @@
 import express, { Router } from "express";
 
-interface IController {
+export interface IController {
   path: string;
   router: Router;
 }
-interface IApp {
+export interface IApp {
   app: express.Application;
   port: number;
 }
-
-export { IController, IApp };
