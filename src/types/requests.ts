@@ -25,4 +25,15 @@ export type RegistrationRequest = {
 export type LoginRequest = {
   email: string;
   password: string;
+  otp: string;
+};
+
+export type GenerateQrCodeRequest = {};
+
+export type setupSecondFactorRequest = {
+  secretKey: string;
+  code: string;
+};
+export type ValidateSecondFactorRequest = {
+  code: string;
 };
