@@ -9,3 +9,7 @@ export const verifyJwtToken = (req, res, next) => {
 
   next();
 };
+
+export const IsAdmin = (req, res, next) => {};
+export const IsUser = (req, res, next) => {};
+export const IsPartiallyAuthenticated = (req, res, next) => {};

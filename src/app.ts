@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import mongoose, { connect, connection, Connection } from "mongoose";
 import { IController, IApp } from "./interfaces";
-import { verifyJwtToken } from "./middlewares/jwt";
+import { verifyJwtToken } from "./middlewares";
 class App implements IApp {
   public app: express.Application;
   public port: number;

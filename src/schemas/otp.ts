@@ -8,13 +8,14 @@ export interface IOtp extends Document {
   user: IUser;
 }
 export enum OtpType {
+  none = "none",
   totp = "totp",
   otp = "otp",
 }
 
 const otpTokensSchema = new Schema<IOtp>({
   token: { type: String, required: true },
-  type: { enum: Object.values(OtpType), default: OtpType.totp },
+  type: { enum: Object.values(OtpType), default: OtpType.none },
   isVerified: { type: Boolean, default: false },
   user: {
     type: Schema.Types.ObjectId,

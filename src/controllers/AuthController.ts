@@ -24,7 +24,12 @@ class AuthController implements IController {
   private initializeRoutes() {
     this.router.post(`${this.path}/login`, this.login);
     this.router.post(`${this.path}/register`, this.register);
-    this.router.post(`${this.path}/2fa/generateQr`, this.register);
+    // this.router.post(`${this.path}/setupSecondFactor`, this.generate2FaQrCodeUrl);
+    this.router.post(`${this.path}/setupSecondFactor`, this.setupSecondFactor);
+    this.router.post(
+      `${this.path}/validateSecondFactor`,
+      this.validateSecondFactor
+    );
   }
 
   generate2FaQrCodeUrl = (req: Request, res: Response) => {
@@ -90,9 +95,13 @@ class AuthController implements IController {
           if (!otp) res.status(404).end("Otp Not found");
 
           if (otp.isVerified) {
-            const token = sign({ id: otp.user._id }, process.env.SECRET_KEY, {
-              expiresIn: "2 days",
-            });
+            const token = sign(
+              { id: otp.user._id, permissions: otp.user.role },
+              process.env.SECRET_KEY,
+              {
+                expiresIn: "2 days",
+              }
+            );
             res.status(200).send({ token });
           } else {
             res.status(400).end("Otp is not varified");
@@ -113,6 +122,7 @@ class AuthController implements IController {
           type: OtpType.totp,
           user: user,
         });
+
         newOtp.save().then(() => {
           res.status(200).send({
             otp: newOtp.token,
@@ -120,9 +130,13 @@ class AuthController implements IController {
         });
       }
 
-      const token = sign({ id: user._id }, process.env.SECRET_KEY, {
-        expiresIn: "2 days",
-      });
+      const token = sign(
+        { id: user._id, permissions: user.role },
+        process.env.SECRET_KEY,
+        {
+          expiresIn: "2 days",
+        }
+      );
 
       res.status(200).send({ token });
     });
