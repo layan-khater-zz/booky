@@ -1,11 +1,11 @@
 import { Document, model, Schema } from "mongoose";
 import { OtpType } from "./otp";
 
-enum Role {
+export enum Role {
   member = 0,
   admin = 1,
-  partiallyAuthenticatedUser = 3,
 }
+
 export interface IUser extends Document {
   name: string;
   email: string;
@@ -18,12 +18,16 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>({
   name: { type: String, required: true },
-  email: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   secondFactorKey: { type: String },
-  secondFactorMethod: { enum: Object.values(OtpType), default: OtpType.none },
+  secondFactorMethod: {
+    type: String,
+    enum: Object.values(OtpType),
+    default: OtpType.none,
+  },
   isSecondFactorEnabled: { type: Boolean },
-  role: { enum: Object.values(Role), default: Role.member },
+  role: { type: String, enum: Object.values(Role), default: Role.member },
 });
 
 const User = model<IUser>("Users", userSchema);

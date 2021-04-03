@@ -1,7 +1,7 @@
 import { compareSync, hashSync } from "bcryptjs";
 import { Router, Request, Response } from "express";
 import { IController } from "../interfaces";
-import User, { IUser } from "../schemas/user";
+import User, { IUser, Role } from "../schemas/user";
 import {
   LoginRequest,
   RegistrationRequest,
@@ -12,109 +12,108 @@ import { sign } from "jsonwebtoken";
 import * as speakeasy from "speakeasy";
 import * as uuid from "uuid";
 import OtpToken, { IOtp, OtpType } from "../schemas/otp";
+import { useRoleChecker } from "../middlewares";
+import bookyError from "../bookyErrors";
 
 class AuthController implements IController {
   public path: string;
   public router = Router();
-  constructor(path: string) {
+  constructor(path: string, verfiyToken: any) {
     this.path = path;
-    this.initializeRoutes();
+    this.initializePublicRoutes();
+    this.initializePrivateRoutes(verfiyToken);
   }
-
-  private initializeRoutes() {
-    this.router.post(`${this.path}/login`, this.login);
-    this.router.post(`${this.path}/register`, this.register);
-    // this.router.post(`${this.path}/setupSecondFactor`, this.generate2FaQrCodeUrl);
-    this.router.post(`${this.path}/setupSecondFactor`, this.setupSecondFactor);
+  private initializePrivateRoutes(verifyJwtToken: any) {
     this.router.post(
-      `${this.path}/validateSecondFactor`,
+      `/setupSecondFactor`,
+      verifyJwtToken,
+      useRoleChecker([Role.member, Role.admin]),
+      this.setupSecondFactor
+    );
+    this.router.post(
+      `/validateSecondFactor`,
+      verifyJwtToken,
+      useRoleChecker([Role.member, Role.admin]),
       this.validateSecondFactor
     );
   }
 
-  generate2FaQrCodeUrl = (req: Request, res: Response) => {
-    const secretCode = speakeasy.generateSecret({
-      name: process.env.TWO_FACTOR_AUTHENTICATION_APP_NAME,
-    });
+  private initializePublicRoutes() {
+    this.router.post(`/login`, this.login);
+    this.router.post(`/register`, this.register);
+    // this.router.post(`/setupSecondFactor`, this.generate2FaQrCodeUrl);
+  }
 
-    res.status(200).send({
-      otpauthUrl: secretCode.otpauth_url,
-      base32: secretCode.base32,
-    });
-  };
-
-  setupSecondFactor = (req, res: Response) => {
-    const secondFactorRequest = req.body as setupSecondFactorRequest;
+  setupSecondFactor = async (req, res: Response) => {
     const reqUser = req.user;
 
-    const verified = speakeasy.totp.verify({
-      secret: secondFactorRequest.secretKey,
-      encoding: "base32",
-      token: secondFactorRequest.code,
+    const user = await User.findById(reqUser.id);
+
+    const secretKey = speakeasy.generateSecret({
+      name: user.email,
+      issuer: process.env.TWO_FACTOR_AUTHENTICATION_APP_NAME,
     });
 
-    if (!verified) {
-      res.status(401).send("Code is Invalid");
-    }
-
-    User.updateOne(
+    await User.updateOne(
       {
         _id: reqUser.id,
       },
       {
-        isSecondFactorEnabled: true,
-        secondFactorKey: secondFactorRequest.secretKey,
+        secondFactorKey: secretKey.base32,
       }
     );
+    return res.status(200).send({
+      otpauthUrl: secretKey.otpauth_url,
+      base32: secretKey.base32,
+    });
   };
 
-  validateSecondFactor = (req, res: Response) => {
+  validateSecondFactor = async (req, res: Response) => {
     const secondFactorRequest = req.body as ValidateSecondFactorRequest;
     const reqUser = req.user;
+    const user = await User.findById(reqUser.id);
 
     const verified = speakeasy.totp.verify({
-      secret: reqUser.id,
+      secret: user.secondFactorKey,
       encoding: "base32",
       token: secondFactorRequest.code,
     });
-    if (!verified) res.status(401);
-
-    res.status(200);
+    if (!verified) return res.status(400).send(bookyError.InvalidCode);
+    await user.updateOne({
+      isSecondFactorEnabled: true,
+    });
+    return res.status(200).end();
   };
 
-  login = (req: Request, res: Response) => {
+  login = async (req: Request, res: Response) => {
     const loginRequest: LoginRequest = req.body as LoginRequest;
 
     if (loginRequest.otp) {
-      OtpToken.findOne(
-        {
-          token: loginRequest.otp,
-        },
-        (err, otp: IOtp) => {
-          if (err) res.status(500).end("Internal server error");
-          if (!otp) res.status(404).end("Otp Not found");
-
-          if (otp.isVerified) {
-            const token = sign(
-              { id: otp.user._id, permissions: otp.user.role },
-              process.env.SECRET_KEY,
-              {
-                expiresIn: "2 days",
-              }
-            );
-            res.status(200).send({ token });
-          } else {
-            res.status(400).end("Otp is not varified");
+      const otp = await OtpToken.findOne({
+        token: loginRequest.otp,
+      }).populate("user");
+      if (!otp) return res.status(404).end("Otp Not found");
+      const verified = speakeasy.totp.verify({
+        secret: otp.user.secondFactorKey,
+        encoding: "base32",
+        token: loginRequest.code,
+      });
+      if (verified) {
+        const token = sign(
+          { id: otp.user._id, role: otp.user.role },
+          process.env.SECRET_KEY,
+          {
+            expiresIn: "2 days",
           }
-        }
-      );
+        );
+        return res.status(200).send({ token });
+      } else {
+        return res.status(400).end("Otp is not varified");
+      }
     }
-    User.findOne({ email: loginRequest.email }, (err, user: IUser) => {
-      if (err) res.status(500).end("Internal server error");
-      if (!user) res.status(404).end("Invalid Email or Password");
-
-      const isValidPassword = compareSync(loginRequest.password, user.password);
-      if (!isValidPassword) res.status(401).end("Invalid Email or Password");
+    try {
+      const user = await User.findOne({ email: loginRequest.email });
+      if (!user) return res.status(404).end("Invalid Email or Password");
 
       if (user.isSecondFactorEnabled) {
         const newOtp = new OtpToken({
@@ -123,27 +122,40 @@ class AuthController implements IController {
           user: user,
         });
 
-        newOtp.save().then(() => {
-          res.status(200).send({
-            otp: newOtp.token,
-          });
+        await newOtp.save();
+        return res.status(200).send({
+          otp: newOtp.token,
         });
+      } else {
+        const isValidPassword = compareSync(
+          loginRequest.password,
+          user.password
+        );
+        if (!isValidPassword)
+          return res.status(401).end("Invalid Email or Password");
       }
 
       const token = sign(
-        { id: user._id, permissions: user.role },
+        { id: user._id, role: user.role },
         process.env.SECRET_KEY,
         {
           expiresIn: "2 days",
         }
       );
 
-      res.status(200).send({ token });
-    });
+      return res.status(200).send({ token });
+    } catch {
+      return res.status(500).end("Internal server error");
+    }
   };
 
-  register = (req: Request, res: Response) => {
+  register = async (req: Request, res: Response) => {
     const newUserReq: RegistrationRequest = req.body as RegistrationRequest;
+    const users = await User.find({ email: newUserReq.email });
+    if (users.length != 0) {
+      return res.status(400).send(bookyError.EmailAlreadyExist);
+    }
+
     const hashedPassword = hashSync(newUserReq.password);
     const newUser = new User({
       name: newUserReq.name,
@@ -155,11 +167,11 @@ class AuthController implements IController {
       .save()
       .then((r) => {
         console.log(`User Registration has been succeed`);
-        res.status(200).end();
+        return res.status(200).end();
       })
       .catch((err) => {
         console.log(err);
-        res.status(500).end();
+        return res.status(500).end();
       });
   };
 }

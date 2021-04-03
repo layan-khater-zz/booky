@@ -1,25 +1,61 @@
 import { Router, Request, Response } from "express";
+import { Types } from "mongoose";
+import bookyError from "../bookyErrors";
 import { IController } from "../interfaces";
+import { useRoleChecker } from "../middlewares";
 import Book from "../schemas/book";
+import { Role } from "../schemas/user";
 import { BookRequest, Pagination } from "../types/requests";
 
 class BooksController implements IController {
   public path: string;
   public router = Router();
 
-  constructor(path: string) {
+  constructor(path: string, verifyToken: any) {
     this.path = path;
-    this.initializeRoutes();
+    this.initializePublicRoutes();
+    this.initializePrivateRoutes(verifyToken);
+  }
+  private initializePrivateRoutes(verifyToken: any) {
+    this.router.post(
+      "/create",
+      verifyToken,
+      useRoleChecker([Role.admin]),
+      this.createBook
+    );
+    this.router.patch(
+      "",
+      verifyToken,
+      useRoleChecker([Role.admin]),
+      this.createBooks
+    );
+    this.router.put(
+      `/:bookId`,
+      verifyToken,
+      useRoleChecker([Role.admin]),
+      this.updateBook
+    );
+    this.router.delete(
+      `/:bookId`,
+      verifyToken,
+      useRoleChecker([Role.admin]),
+      this.deleteBook
+    );
+    this.router.get(
+      "/:bookId",
+      verifyToken,
+      useRoleChecker([Role.member, Role.admin]),
+      this.getBook
+    );
+    this.router.get(
+      "",
+      verifyToken,
+      useRoleChecker([Role.member, Role.admin]),
+      this.searchBooks
+    );
   }
 
-  private initializeRoutes() {
-    this.router.post(this.path, this.createBook);
-    this.router.patch(this.path, this.createBooks);
-    this.router.put(`${this.path}/:bookId`, this.updateBook);
-    this.router.delete(`${this.path}/:bookId`, this.deleteBook);
-    this.router.get(`${this.path}/:bookId`, this.getBook);
-    this.router.get(`${this.path}`, this.searchBooks);
-  }
+  private initializePublicRoutes() {}
 
   createBook = (req: Request, res: Response) => {
     const newBookReq: BookRequest = req.body as BookRequest;
@@ -39,7 +75,7 @@ class BooksController implements IController {
       });
   };
 
-  createBooks = (req: Request, res: Response) => {
+  createBooks = async (req: Request, res: Response) => {
     const newBookReqs: BookRequest[] = req.body as BookRequest[];
     const newBooks = newBookReqs.map(
       (newBookReq: BookRequest) =>
@@ -48,7 +84,7 @@ class BooksController implements IController {
           author: newBookReq.author,
         })
     );
-    Book.insertMany(newBooks)
+    await Book.insertMany(newBooks)
       .then((r) => {
         console.log(`${r.length} books were created successfuly`);
         res.status(201).end(`${r.length} books were created successfuly`);
@@ -59,10 +95,10 @@ class BooksController implements IController {
       });
   };
 
-  updateBook = (req: Request, res: Response) => {
+  updateBook = async (req: Request, res: Response) => {
     const toUpdateBookReq: BookRequest = req.body as BookRequest;
     const { bookId } = req.params;
-    const toUpdateBook = Book.findById(bookId);
+    const toUpdateBook = await Book.findById(bookId);
 
     toUpdateBook
       .update({ author: toUpdateBookReq.author, name: toUpdateBookReq.name })
@@ -76,9 +112,9 @@ class BooksController implements IController {
       });
   };
 
-  deleteBook = (req: Request, res: Response) => {
+  deleteBook = async (req: Request, res: Response) => {
     const { bookId } = req.params;
-    Book.findByIdAndDelete(bookId)
+    await Book.findByIdAndDelete(bookId)
       .then((r) => {
         console.log(`Book with name ${r.name} has deleted successfuly`);
         res.status(201).end();
@@ -89,34 +125,21 @@ class BooksController implements IController {
       });
   };
 
-  getBook = (req: Request, res: Response) => {
-    const paginatedQuery: Pagination = (req.query as unknown) as Pagination;
-    const limit = parseInt(paginatedQuery.limit as string);
-    const pageNumber = parseInt(paginatedQuery.pageNumber as string);
-    Book.find(
-      {},
-      null,
-      {
-        limit: limit,
-        skip: limit * (pageNumber - 1),
-      },
-      (err, books) => {
-        console.log(books);
-        const jsonSearchResBooks = JSON.stringify({
-          total: books.length,
-          result: books,
-          pageNumber: pageNumber,
-        });
+  getBook = async (req: Request, res: Response) => {
+    const bookParam = req.params.bookId as string;
+    const bookId = Types.ObjectId(bookParam);
 
-        res.status(200).end(jsonSearchResBooks);
-      }
-    );
+    const book = await Book.findById(bookId);
+
+    return book != null
+      ? res.status(200).send(book)
+      : res.status(404).send(bookyError.BookNotFound(bookParam));
   };
-  searchBooks = (req: Request, res: Response) => {
+  searchBooks = async (req: Request, res: Response) => {
     const paginatedQuery: Pagination = (req.query as unknown) as Pagination;
     const limit = parseInt(paginatedQuery.limit as string);
     const pageNumber = parseInt(paginatedQuery.pageNumber as string);
-    Book.find(
+    await Book.find(
       {},
       null,
       {

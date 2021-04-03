@@ -26,6 +26,7 @@ export type LoginRequest = {
   email: string;
   password: string;
   otp: string;
+  code: string;
 };
 
 export type GenerateQrCodeRequest = {};

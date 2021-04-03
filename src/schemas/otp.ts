@@ -15,8 +15,7 @@ export enum OtpType {
 
 const otpTokensSchema = new Schema<IOtp>({
   token: { type: String, required: true },
-  type: { enum: Object.values(OtpType), default: OtpType.none },
-  isVerified: { type: Boolean, default: false },
+  type: { type: String, enum: Object.values(OtpType), default: OtpType.none },
   user: {
     type: Schema.Types.ObjectId,
     ref: "Users",

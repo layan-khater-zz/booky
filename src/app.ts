@@ -1,7 +1,8 @@
+import { hashSync } from "bcryptjs";
 import express, { Request, Response } from "express";
 import mongoose, { connect, connection, Connection } from "mongoose";
 import { IController, IApp } from "./interfaces";
-import { verifyJwtToken } from "./middlewares";
+import User, { IUser, Role } from "./schemas/user";
 class App implements IApp {
   public app: express.Application;
   public port: number;
@@ -22,7 +23,6 @@ class App implements IApp {
       res.setHeader("Content-Type", "application/json");
       next();
     });
-    this.app.use(verifyJwtToken);
   }
 
   private intializeControllers(controllers: IController[]) {
@@ -34,15 +34,25 @@ class App implements IApp {
   private intializeDbConnection = (url: string) => {
     connect(
       url,
-      { useNewUrlParser: true, useUnifiedTopology: true },
+      { useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex: true },
       (err: any) => {
         if (err) throw err;
       }
     );
   };
   connectDb = () => {
-    this.db.once("open", () => {
+    this.db.once("open", async () => {
       console.log("we are connected!");
+      const userAdmin = await User.find({ email: "admin@booky.com" });
+      if (userAdmin.length == 0) {
+        const newUser = new User({
+          name: "system admin",
+          email: "admin@booky.com",
+          password: hashSync("Pass@123"),
+          role: Role.admin,
+        } as IUser);
+        await newUser.save();
+      }
     });
   };
 
