@@ -2,6 +2,8 @@
   "env": {
     "SECRET_KEY": "secret_this_should_be_longer",
     "DB_URL":"mongodb://localhost:27017/booky",
-    "TWO_FACTOR_AUTHENTICATION_APP_NAME":"Booky"
+    "DB_URL_TEST":"mongodb://localhost:27017/bookyTt",
+    "TWO_FACTOR_AUTHENTICATION_APP_NAME":"Booky",
+    "NODE_ENV":"development"
   }
 }

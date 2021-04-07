@@ -1,6 +1,11 @@
 import { hashSync } from "bcryptjs";
 import express, { Request, Response } from "express";
-import mongoose, { connect, connection, Connection } from "mongoose";
+import mongoose, {
+  connect,
+  connection,
+  Connection,
+  createConnection,
+} from "mongoose";
 import { IController, IApp } from "./interfaces";
 import User, { IUser, Role } from "./schemas/user";
 class App implements IApp {
@@ -61,7 +66,7 @@ class App implements IApp {
   };
 
   public listen = () => {
-    this.app.listen(this.port, () => console.log("listening to 8080"));
+    this.app.listen(this.port, () => console.log(`listening to ${this.port}`));
   };
 }
 
