@@ -17,5 +17,5 @@ export const useRoleChecker = (allowedRoles: Role[]) => (req, res, next) => {
   let role: Role = parseInt(req.user.role, 10);
   return allowedRoles.includes(role)
     ? next()
-    : res.status(401).end(bookyError.InvalidRole);
+    : res.status(401).send(bookyError.InvalidRole);
 };

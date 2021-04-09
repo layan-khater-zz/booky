@@ -66,12 +66,11 @@ class BooksController implements IController {
     newBook
       .save()
       .then((r) => {
-        console.log(`Book with name ${r.name} created successfuly`);
-        res.status(201).end();
+        return res.status(200).send({ id: r.id });
       })
       .catch((err) => {
         console.log(err);
-        res.status(500).end();
+        return res.status(500).end();
       });
   };
 
@@ -86,12 +85,10 @@ class BooksController implements IController {
     );
     await Book.insertMany(newBooks)
       .then((r) => {
-        console.log(`${r.length} books were created successfuly`);
-        res.status(201).end(`${r.length} books were created successfuly`);
+        return res.status(201).send();
       })
       .catch((err) => {
-        console.log(err);
-        res.status(500).end();
+        return res.status(500).end();
       });
   };
 
@@ -103,7 +100,6 @@ class BooksController implements IController {
     toUpdateBook
       .update({ author: toUpdateBookReq.author, name: toUpdateBookReq.name })
       .then((r) => {
-        console.log(`Book with name ${r.name} has updated successfuly`);
         res.status(201).end();
       })
       .catch((err) => {
@@ -116,7 +112,6 @@ class BooksController implements IController {
     const { bookId } = req.params;
     await Book.findByIdAndDelete(bookId)
       .then((r) => {
-        console.log(`Book with name ${r.name} has deleted successfuly`);
         res.status(201).end();
       })
       .catch((err) => {
@@ -135,6 +130,7 @@ class BooksController implements IController {
       ? res.status(200).send(book)
       : res.status(404).send(bookyError.BookNotFound(bookParam));
   };
+
   searchBooks = async (req: Request, res: Response) => {
     const paginatedQuery: Pagination = (req.query as unknown) as Pagination;
     const limit = parseInt(paginatedQuery.limit as string);
@@ -147,7 +143,6 @@ class BooksController implements IController {
         skip: limit * (pageNumber - 1),
       },
       (err, books) => {
-        console.log(books);
         const jsonSearchResBooks = JSON.stringify({
           total: books.length,
           result: books,

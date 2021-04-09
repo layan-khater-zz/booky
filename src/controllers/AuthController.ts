@@ -132,7 +132,7 @@ class AuthController implements IController {
           user.password
         );
         if (!isValidPassword)
-          return res.status(401).end("Invalid Email or Password");
+          return res.status(401).send("Invalid Email or Password");
       }
 
       const token = sign(
