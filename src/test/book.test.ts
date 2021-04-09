@@ -55,8 +55,30 @@ describe("book apis", () => {
         assert.equal(err.rawResponse, "UnAuthorized: Invalid Role");
       });
   });
-  it("create book without author", () => {});
-  it("create book without name", () => {});
+
+  it("create book without author", () => {
+    const bookReq = { ...bookRequest };
+    bookReq.author = "";
+    request(server)
+      .post("/books/create")
+      .auth(adminToken, { type: "bearer" })
+      .send(bookReq)
+      .end((err, res) => {
+        assert.equal(res.status, 400);
+      });
+  });
+
+  it("create book without name", () => {
+    const bookReq = { ...bookRequest };
+    bookReq.name = "";
+    request(server)
+      .post("/books/create")
+      .auth(adminToken, { type: "bearer" })
+      .send(bookReq)
+      .end((err, res) => {
+        assert.equal(res.status, 400);
+      });
+  });
 
   it("get books (member token)", () => {
     request(server)
@@ -97,7 +119,15 @@ describe("book apis", () => {
       });
   });
 
-  it("create patch books empty body", () => {});
+  // it("create patch books empty body", () => {
+  //   request(server)
+  //     .patch("/books")
+  //     .auth(adminToken, { type: "bearer" })
+  //     .send([])
+  //     .end((err, res) => {
+  //       assert.equal(res.status, 400);
+  //     });
+  // });
 
   after("remove account", async () => {
     await User.deleteOne({ email: registrationRequest.email }, {});

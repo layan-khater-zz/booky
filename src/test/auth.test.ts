@@ -42,10 +42,49 @@ describe("auth apis", () => {
       });
   });
 
-  it("register account without password", () => {});
-  it("register account with short password", () => {});
-  it("register account without email", () => {});
-  it("register account with wrong email structure", () => {});
+  it("register account without password", () => {
+    const regReq = { ...registrationRequest };
+    regReq.password = "";
+    request(server)
+      .post("/auth/register")
+      .send(regReq)
+      .end((err, res) => {
+        assert.equal(res.status, 400);
+      });
+  });
+
+  it("register account with short password", () => {
+    const regReq = { ...registrationRequest };
+    regReq.password = "123";
+    request(server)
+      .post("/auth/register")
+      .send(regReq)
+      .end((err, res) => {
+        assert.equal(res.status, 400);
+      });
+  });
+
+  it("register account without email", () => {
+    const regReq = { ...registrationRequest };
+    regReq.email = "";
+    request(server)
+      .post("/auth/register")
+      .send(regReq)
+      .end((err, res) => {
+        assert.equal(res.status, 400);
+      });
+  });
+
+  it("register account with wrong email structure", () => {
+    const regReq = { ...registrationRequest };
+    regReq.email = "layan";
+    request(server)
+      .post("/auth/register")
+      .send(regReq)
+      .end((err, res) => {
+        assert.equal(res.status, 400);
+      });
+  });
 
   it("login successfully", () => {
     request(server)
@@ -59,6 +98,7 @@ describe("auth apis", () => {
         assert.equal(res.status, 200);
       });
   });
+
   it("login with wrong password", () => {
     request(server)
       .post("/auth/login")
@@ -72,6 +112,7 @@ describe("auth apis", () => {
         assert.equal(err.rawResponse, "Invalid Email or Password");
       });
   });
+
   it("login with wrong email", () => {
     request(server)
       .post("/auth/login")
@@ -85,8 +126,31 @@ describe("auth apis", () => {
         assert.equal(err.rawResponse, "Invalid Email or Password");
       });
   });
-  it("login without password", () => {});
-  it("login without email", () => {});
+
+  it("login without password", () => {
+    request(server)
+      .post("/auth/login")
+      .send({
+        email: "layan.khater3@gmail.com",
+        password: "",
+      })
+      .end((err, res) => {
+        assert.equal(res.status, 400);
+      });
+  });
+
+  it("login without email", () => {
+    request(server)
+      .post("/auth/login")
+      .send({
+        email: "",
+        password: "Pass@123",
+      })
+      .end((err, res) => {
+        assert.equal(res.status, 400);
+      });
+  });
+
   after("remove account", (done) => {
     User.deleteOne({ email: registrationRequest.email }, {}, done);
   });

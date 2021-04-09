@@ -6,6 +6,8 @@ import { useRoleChecker } from "../middlewares";
 import Book from "../schemas/book";
 import { Role } from "../schemas/user";
 import { BookRequest, Pagination } from "../types/requests";
+import { body, validationResult } from "express-validator";
+import { nameof } from "../helpers";
 
 class BooksController implements IController {
   public path: string;
@@ -21,12 +23,17 @@ class BooksController implements IController {
       "/create",
       verifyToken,
       useRoleChecker([Role.admin]),
+      body(nameof<BookRequest>("author")).notEmpty(),
+      body(nameof<BookRequest>("name")).notEmpty(),
       this.createBook
     );
     this.router.patch(
       "",
       verifyToken,
       useRoleChecker([Role.admin]),
+      body().isArray({ min: 0, max: 30 }),
+      body(`*.${nameof<BookRequest>("author")}`).notEmpty(),
+      body(`*.${nameof<BookRequest>("name")}`).notEmpty(),
       this.createBooks
     );
     this.router.put(
@@ -58,6 +65,11 @@ class BooksController implements IController {
   private initializePublicRoutes() {}
 
   createBook = (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const newBookReq: BookRequest = req.body as BookRequest;
     const newBook = new Book({
       name: newBookReq.name,
@@ -75,6 +87,11 @@ class BooksController implements IController {
   };
 
   createBooks = async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const newBookReqs: BookRequest[] = req.body as BookRequest[];
     const newBooks = newBookReqs.map(
       (newBookReq: BookRequest) =>

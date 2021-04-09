@@ -11,9 +11,11 @@ import {
 import { sign } from "jsonwebtoken";
 import * as speakeasy from "speakeasy";
 import * as uuid from "uuid";
-import OtpToken, { IOtp, OtpType } from "../schemas/otp";
+import OtpToken, { OtpType } from "../schemas/otp";
 import { useRoleChecker } from "../middlewares";
 import bookyError from "../bookyErrors";
+import { body, validationResult } from "express-validator";
+import { nameof } from "../helpers";
 
 class AuthController implements IController {
   public path: string;
@@ -39,8 +41,21 @@ class AuthController implements IController {
   }
 
   private initializePublicRoutes() {
-    this.router.post(`/login`, this.login);
-    this.router.post(`/register`, this.register);
+    this.router.post(
+      `/login`,
+      body(nameof<RegistrationRequest>("email")).notEmpty().isEmail(),
+      body(nameof<RegistrationRequest>("password")).notEmpty(),
+      this.login
+    );
+    this.router.post(
+      `/register`,
+      body(nameof<RegistrationRequest>("email")).notEmpty().isEmail(),
+      body(nameof<RegistrationRequest>("password"))
+        .notEmpty()
+        .isLength({ min: 6 }),
+      body(nameof<RegistrationRequest>("name")).notEmpty(),
+      this.register
+    );
     // this.router.post(`/setupSecondFactor`, this.generate2FaQrCodeUrl);
   }
 
@@ -86,6 +101,10 @@ class AuthController implements IController {
   };
 
   login = async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
     const loginRequest: LoginRequest = req.body as LoginRequest;
 
     if (loginRequest.otp) {
@@ -150,6 +169,11 @@ class AuthController implements IController {
   };
 
   register = async (req: Request, res: Response) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
     const newUserReq: RegistrationRequest = req.body as RegistrationRequest;
     const users = await User.find({ email: newUserReq.email });
     if (users.length != 0) {
